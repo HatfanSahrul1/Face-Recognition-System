@@ -1,4 +1,4 @@
-#include "server.hpp"
+#include "server/server.hpp"
 #include "base64/base64.hpp"
 #include <opencv2/opencv.hpp>
 #include <fstream>
@@ -42,6 +42,10 @@ void FaceRecognitionServer::handlePost(http_request request) {
             response.set_body(resp);
             request.reply(response);
         }).wait();
+    } else if (path == U("/register")) {
+        handleRegister(request);
+    } else if (path == U("/verify")) {
+        handleVerify(request);
     } else {
         request.reply(status_codes::NotFound);
     }
@@ -55,13 +59,47 @@ void FaceRecognitionServer::handleOptions(http_request request) {
     request.reply(response);
 }
 
+void FaceRecognitionServer::handleRegister(http_request request) {
+    request.extract_json().then([this, request](json::value body) {
+        auto name = body.at(U("name")).as_string();
+        auto imageBase64 = body.at(U("image")).as_string();
+        
+        this->registerFace(name, imageBase64);
+        
+        http_response response(status_codes::OK);
+        response.headers().add(U("Access-Control-Allow-Origin"), U("*"));
+        json::value resp;
+        resp[U("status")] = json::value::string(U("registered"));
+        resp[U("name")] = json::value::string(name);
+        response.set_body(resp);
+        request.reply(response);
+    }).wait();
+}
+
+void FaceRecognitionServer::handleVerify(http_request request) {
+    request.extract_json().then([this, request](json::value body) {
+        auto imageBase64 = body.at(U("image")).as_string();
+        
+        std::string name;
+        float confidence;
+        this->verifyFace(imageBase64, name, confidence);
+        
+        http_response response(status_codes::OK);
+        response.headers().add(U("Access-Control-Allow-Origin"), U("*"));
+        json::value resp;
+        resp[U("status")] = json::value::string(U("verified"));
+        resp[U("name")] = json::value::string(name);
+        resp[U("confidence")] = json::value::number(confidence);
+        response.set_body(resp);
+        request.reply(response);
+    }).wait();
+}
+
 void FaceRecognitionServer::processImage(const std::string& base64Image) {
-    // Simpan base64 ke file txt (debug)
     std::ofstream txtfile("/app/data/received_image.txt");
     txtfile << base64Image;
     txtfile.close();
 
-    // Decode base64 ke gambar
     try {
         std::vector<unsigned char> decoded = Base64::decode(base64Image);
         cv::Mat img = cv::imdecode(decoded, cv::IMREAD_COLOR);
@@ -74,6 +112,26 @@ void FaceRecognitionServer::processImage(const std::string& base64Image) {
     } catch (std::exception const& e) {
         std::cerr << "Decode error: " << e.what() << std::endl;
     }
+}
+
+void FaceRecognitionServer::registerFace(const std::string& name, const std::string& base64Image) {
+    std::cout << "Register face for: " << name << std::endl;
+    // Simpan gambar untuk dummy
+    try {
+        std::vector<unsigned char> decoded = Base64::decode(base64Image);
+        cv::Mat img = cv::imdecode(decoded, cv::IMREAD_COLOR);
+        if (!img.empty()) {
+            cv::imwrite("/app/data/register_" + name + ".jpg", img);
+            std::cout << "Saved: /app/data/register_" << name << ".jpg" << std::endl;
+        }
+    } catch(...) {}
+}
+
+void FaceRecognitionServer::verifyFace(const std::string& base64Image, std::string& outName, float& outConfidence) {
+    std::cout << "Verify face" << std::endl;
+    // Dummy: selalu kenali sebagai "John Doe" dengan confidence 0.95
+    outName = "John Doe";
+    outConfidence = 0.95f;
 }
 
 void FaceRecognitionServer::start() {

@@ -16,6 +16,12 @@ private:
     void handlePost(web::http::http_request request);
     void handleOptions(web::http::http_request request);
     void processImage(const std::string& base64Image);
+
+    void handleRegister(web::http::http_request request);
+    void handleVerify(web::http::http_request request);
+    // method dummy
+    void registerFace(const std::string& name, const std::string& base64Image);
+    void verifyFace(const std::string& base64Image, std::string& outName, float& outConfidence);
 };
 
 #endif
