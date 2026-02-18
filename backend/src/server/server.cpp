@@ -9,11 +9,15 @@ using namespace web::http;
 using namespace web::http::experimental::listener;
 
 FaceRecognitionServer::FaceRecognitionServer(const std::string& address) 
-    : listener(address) {
+:   listener(address),
+    detector_(std::make_unique<FaceDetector>("/app/models/haarcascade_frontalface_default.xml"))    
+{
     listener.support(methods::GET, std::bind(&FaceRecognitionServer::handleGet, this, std::placeholders::_1));
     listener.support(methods::POST, std::bind(&FaceRecognitionServer::handlePost, this, std::placeholders::_1));
     listener.support(methods::OPTIONS, std::bind(&FaceRecognitionServer::handleOptions, this, std::placeholders::_1));
 }
+
+FaceRecognitionServer::~FaceRecognitionServer() = default;
 
 void FaceRecognitionServer::handleGet(http_request request) {
     auto path = request.request_uri().path();
@@ -116,12 +120,12 @@ void FaceRecognitionServer::processImage(const std::string& base64Image) {
 
 void FaceRecognitionServer::registerFace(const std::string& name, const std::string& base64Image) {
     std::cout << "Register face for: " << name << std::endl;
-    // Simpan gambar untuk dummy
     try {
         std::vector<unsigned char> decoded = Base64::decode(base64Image);
         cv::Mat img = cv::imdecode(decoded, cv::IMREAD_COLOR);
         if (!img.empty()) {
-            cv::imwrite("/app/data/register_" + name + ".jpg", img);
+            cv::Mat faceImg = detector_->cropLargestFace(img);
+            cv::imwrite("/app/data/register_" + name + ".jpg", faceImg);
             std::cout << "Saved: /app/data/register_" << name << ".jpg" << std::endl;
         }
     } catch(...) {}

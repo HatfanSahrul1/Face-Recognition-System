@@ -3,10 +3,15 @@
 
 #include <cpprest/http_listener.h>
 #include <string>
+#include <memory>
+
+#include "detector/face_detector.hpp"
 
 class FaceRecognitionServer {
 public:
     FaceRecognitionServer(const std::string& address);
+    ~FaceRecognitionServer();
+
     void start();
     void stop();
 
@@ -22,6 +27,8 @@ private:
     // method dummy
     void registerFace(const std::string& name, const std::string& base64Image);
     void verifyFace(const std::string& base64Image, std::string& outName, float& outConfidence);
+
+    std::unique_ptr<FaceDetector> detector_;
 };
 
 #endif
