@@ -6,6 +6,8 @@
 #include <memory>
 
 #include "detector/face_detector.hpp"
+#include "embedder/face_embedder.hpp"
+#include "db/face_db.hpp"
 
 class FaceRecognitionServer {
 public:
@@ -29,6 +31,8 @@ private:
     void verifyFace(const std::string& base64Image, std::string& outName, float& outConfidence);
 
     std::unique_ptr<FaceDetector> detector_;
+    std::unique_ptr<FaceEmbedder> embedder_;
+    std::unique_ptr<FaceDB> db_;
 };
 
 #endif

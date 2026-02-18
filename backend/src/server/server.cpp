@@ -10,7 +10,9 @@ using namespace web::http::experimental::listener;
 
 FaceRecognitionServer::FaceRecognitionServer(const std::string& address) 
 :   listener(address),
-    detector_(std::make_unique<FaceDetector>("/app/models/haarcascade_frontalface_default.xml"))    
+    detector_(std::make_unique<FaceDetector>("/app/models/detector/haarcascade_frontalface_default.xml")),
+    embedder_(std::make_unique<FaceEmbedder>("/app/models/embedding/arcfaceresnet100-8.onnx")),
+    db_(std::make_unique<FaceDB>("/app/data/face_db.bin"))
 {
     listener.support(methods::GET, std::bind(&FaceRecognitionServer::handleGet, this, std::placeholders::_1));
     listener.support(methods::POST, std::bind(&FaceRecognitionServer::handlePost, this, std::placeholders::_1));
@@ -125,17 +127,33 @@ void FaceRecognitionServer::registerFace(const std::string& name, const std::str
         cv::Mat img = cv::imdecode(decoded, cv::IMREAD_COLOR);
         if (!img.empty()) {
             cv::Mat faceImg = detector_->cropLargestFace(img);
-            cv::imwrite("/app/data/register_" + name + ".jpg", faceImg);
-            std::cout << "Saved: /app/data/register_" << name << ".jpg" << std::endl;
+            cv::imwrite("register_"+ name +".jpg", faceImg);
+            std::vector<float> faceEmbedd = embedder_->getEmbedding(faceImg);
+            db_->add(name, faceEmbedd);
         }
     } catch(...) {}
 }
 
 void FaceRecognitionServer::verifyFace(const std::string& base64Image, std::string& outName, float& outConfidence) {
     std::cout << "Verify face" << std::endl;
-    // Dummy: selalu kenali sebagai "John Doe" dengan confidence 0.95
-    outName = "John Doe";
-    outConfidence = 0.95f;
+    try
+    {
+        std::vector<unsigned char> decoded = Base64::decode(base64Image);
+        cv::Mat img = cv::imdecode(decoded, cv::IMREAD_COLOR);
+        if (!img.empty()) {
+            cv::Mat faceImg = detector_->cropLargestFace(img);
+            cv::imwrite("verify_current.jpg", faceImg);
+            std::vector<float> faceEmbedd = embedder_->getEmbedding(faceImg);
+            std::pair<std::string, float> data = db_->find(faceEmbedd, 0.2f);
+            outName = data.first;
+            outConfidence = data.second;
+        }
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    
 }
 
 void FaceRecognitionServer::start() {
