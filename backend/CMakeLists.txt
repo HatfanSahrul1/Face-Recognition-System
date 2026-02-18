@@ -20,6 +20,7 @@ add_executable(backend
     src/base64/base64.cpp
     src/detector/face_detector.cpp
     src/embedder/face_embedder.cpp
+    src/db/face_db.cpp
 )
 
 target_include_directories(backend PRIVATE ${CPPREST_INCLUDE_DIR} src)
