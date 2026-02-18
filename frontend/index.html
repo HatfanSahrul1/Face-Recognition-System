@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Recognition</title>
+</head>
+<body>
+    <h1>Face Recognition Test</h1>
+    <video id="video" width="640" height="480" autoplay></video>
+    <canvas id="canvas" width="640" height="480" style="display:none"></canvas>
+    <br>
+    <button onclick="toggleCamera()">Toggle Camera</button>
+    <button onclick="testBackend()">Test Backend</button>
+    <button onclick="sendImage()">Send Image</button>
+    <div id="result"></div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        let stream = null;
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error(err);
+                document.getElementById('result').innerHTML = 'Camera error: ' + err;
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                stream = null;
+            }
+        }
+
+        function toggleCamera() {
+            if (stream) {
+                stopCamera();
+            } else {
+                startCamera();
+            }
+        }
+
+        async function testBackend() {
+            const res = await fetch('http://localhost:8080/health');
+            const text = await res.text();
+            document.getElementById('result').innerHTML = text;
+        }
+
+        async function sendImage() {
+            if (!stream) {
+                document.getElementById('result').innerHTML = 'Camera is off';
+                return;
+            }
+            canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
+            const imgData = canvas.toDataURL('image/jpeg').split(',')[1];
+            
+            const res = await fetch('http://localhost:8080/test', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({image: imgData})
+            });
+            const result = await res.json();
+            document.getElementById('result').innerHTML = JSON.stringify(result);
+        }
+
+        // Auto start camera saat halaman dimuat
+        startCamera();
+    </script>
+</body>
+</html>

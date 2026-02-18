@@ -1,0 +1,26 @@
+services:
+  frontend:
+    build: ./frontend
+    container_name: face_frontend
+    ports:
+      - "80:80"
+    volumes:
+      - C:\Users\THINKPAD\bootcamp\finpro_rev\frontend:/usr/share/nginx/html
+    networks:
+      - face-net
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: face_backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - C:\Users\THINKPAD\bootcamp\finpro_rev\backend:/app
+    networks:
+      - face-net
+    command: tail -f /dev/null
+
+networks:
+  face-net:
