@@ -34,26 +34,32 @@ void FaceDB::add(const std::string& name, const std::vector<float>& emb) {
 }
 
 float FaceDB::cosineSimilarity(const std::vector<float>& a, const std::vector<float>& b) const {
+    if (a.size() != b.size() || a.empty()) return 0.0f; // Add size check
+    
     float dot = 0.0f, normA = 0.0f, normB = 0.0f;
     for (size_t i = 0; i < a.size(); ++i) {
         dot += a[i] * b[i];
         normA += a[i] * a[i];
         normB += b[i] * b[i];
     }
-    return dot / (std::sqrt(normA) * std::sqrt(normB));
+    
+    float denominator = std::sqrt(normA) * std::sqrt(normB);
+    if (denominator < 1e-8) return 0.0f; // Prevent division by zero
+    
+    return dot / denominator;
 }
 
 std::pair<std::string, float> FaceDB::find(const std::vector<float>& queryEmb, float threshold) const {
     float bestSim = -1.0f;
-    std::string bestId;
+    std::string bestName;
     for (const auto& rec : records) {
         float sim = cosineSimilarity(queryEmb, rec.embedding);
         if (sim > bestSim) {
             bestSim = sim;
-            bestId = rec.id;
+            bestName = rec.name; // Store name instead of ID
         }
     }
-    if (bestSim >= threshold) return {bestId, bestSim};
+    if (bestSim >= threshold) return {bestName, bestSim}; // Return name instead of ID
     return {"", 0.0f};
 }
 
@@ -96,28 +102,46 @@ bool FaceDB::load(const std::string& path) {
     records.clear();
 
     uint32_t count;
-    file.read(reinterpret_cast<char*>(&count), sizeof(count));
+    if (!file.read(reinterpret_cast<char*>(&count), sizeof(count))) {
+        return false; // Add error checking
+    }
+    
+    if (count > 100000) { // Sanity check for reasonable number of records
+        return false;
+    }
 
     for (uint32_t i = 0; i < count; ++i) {
         FaceRecord rec;
 
         // id
         uint32_t idLen;
-        file.read(reinterpret_cast<char*>(&idLen), sizeof(idLen));
+        if (!file.read(reinterpret_cast<char*>(&idLen), sizeof(idLen)) || idLen > 1000) {
+            return false; // Add bounds checking
+        }
         rec.id.resize(idLen);
-        file.read(&rec.id[0], idLen);
+        if (!file.read(&rec.id[0], idLen)) {
+            return false;
+        }
 
         // name
         uint32_t nameLen;
-        file.read(reinterpret_cast<char*>(&nameLen), sizeof(nameLen));
+        if (!file.read(reinterpret_cast<char*>(&nameLen), sizeof(nameLen)) || nameLen > 1000) {
+            return false; // Add bounds checking  
+        }
         rec.name.resize(nameLen);
-        file.read(&rec.name[0], nameLen);
+        if (!file.read(&rec.name[0], nameLen)) {
+            return false;
+        }
 
         // embedding
         uint32_t embSize;
-        file.read(reinterpret_cast<char*>(&embSize), sizeof(embSize));
+        if (!file.read(reinterpret_cast<char*>(&embSize), sizeof(embSize)) || embSize > 10000) {
+            return false; // Add bounds checking
+        }
         rec.embedding.resize(embSize);
-        file.read(reinterpret_cast<char*>(rec.embedding.data()), embSize * sizeof(float));
+        if (!file.read(reinterpret_cast<char*>(rec.embedding.data()), embSize * sizeof(float))) {
+            return false;
+        }
 
         records.push_back(rec);
     }
