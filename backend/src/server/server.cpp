@@ -1,6 +1,5 @@
 #include "server/server.hpp"
 #include "base64/base64.hpp"
-#include <opencv2/opencv.hpp>
 #include <fstream>
 #include <iostream>
 
@@ -31,6 +30,8 @@ FaceRecognitionServer::FaceRecognitionServer(const std::string& address)
 
     std::cout << "Detector loaded: " << (detector_ ? "yes" : "no") << std::endl;
     std::cout << "Embedder loaded: " << (embedder_ ? "yes" : "no") << std::endl;
+
+    full_image_ = cv::Mat::zeros(cv::Size(640, 480), CV_8UC1);
 }
 
 FaceRecognitionServer::~FaceRecognitionServer() = default;
@@ -142,23 +143,25 @@ void FaceRecognitionServer::registerFace(const std::string& name, const std::str
         }
         
         std::vector<unsigned char> decoded = Base64::decode(base64Image);
-        cv::Mat img = cv::imdecode(decoded, cv::IMREAD_COLOR);
-        if (img.empty()) {
+        full_image_ = cv::imdecode(decoded, cv::IMREAD_COLOR);
+        if (full_image_.empty()) {
             std::cerr << "Image empty" << std::endl;
             throw std::runtime_error("Image empty");
         }
-        cv::Mat faceImg = detector_->cropLargestFace(img);
-        if (faceImg.empty()) {
+        detector_->cropFace(full_image_, cropped_face_image_, spoof_detection_image_);
+        if (cropped_face_image_.empty()) {
             std::cerr << "No face detected" << std::endl;
             throw std::runtime_error("No face detected");
         }
         
-        std::vector<float> emb = embedder_->getNormalizedEmbedding(faceImg); // atau getEmbedding
+        std::vector<float> emb = embedder_->getNormalizedEmbedding(cropped_face_image_); // atau getEmbedding
         if (emb.empty()) {
             std::cerr << "Embedding empty" << std::endl;
             throw std::runtime_error("Embedding empty");
         }
         db_->add(name, emb);
+
+        ResetImages();
     } 
     catch(const std::exception& e)
     {
@@ -178,18 +181,18 @@ void FaceRecognitionServer::verifyFace(const std::string& base64Image, std::stri
         }
         
         std::vector<unsigned char> decoded = Base64::decode(base64Image);
-        cv::Mat img = cv::imdecode(decoded, cv::IMREAD_COLOR);
-        if (img.empty()) {
+        full_image_ = cv::imdecode(decoded, cv::IMREAD_COLOR);
+        if (full_image_.empty()) {
             std::cerr << "Image empty" << std::endl;
             throw std::runtime_error("Image empty");
         }
-        cv::Mat faceImg = detector_->cropLargestFace(img);
-        if (faceImg.empty()) {
+        detector_->cropFace(full_image_, cropped_face_image_, spoof_detection_image_);
+        if (cropped_face_image_.empty()) {
             std::cerr << "No face detected" << std::endl;
             throw std::runtime_error("No face detected");
         }
         
-        std::vector<float> emb = embedder_->getNormalizedEmbedding(faceImg); // atau getEmbedding
+        std::vector<float> emb = embedder_->getNormalizedEmbedding(cropped_face_image_); // atau getEmbedding
         if (emb.empty()) {
             std::cerr << "Embedding empty" << std::endl;
             throw std::runtime_error("Embedding empty");
@@ -197,12 +200,18 @@ void FaceRecognitionServer::verifyFace(const std::string& base64Image, std::stri
         std::pair<std::string, float> data = db_->find(emb, 0.2f);
         outName = data.first;
         outConfidence = data.second;
+
+        ResetImages();
     }
     catch(const std::exception& e)
     {
         std::cerr << e.what() << '\n';
     }
     
+}
+
+void FaceRecognitionServer::ResetImages(){
+    full_image_ = cv::Mat::zeros(cv::Size(640, 480), CV_8UC1);
 }
 
 void FaceRecognitionServer::start() {
