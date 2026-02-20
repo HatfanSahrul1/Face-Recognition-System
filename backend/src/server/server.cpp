@@ -10,13 +10,27 @@ using namespace web::http::experimental::listener;
 
 FaceRecognitionServer::FaceRecognitionServer(const std::string& address) 
 :   listener(address),
-    detector_(std::make_unique<FaceDetector>("/app/models/detector/haarcascade_frontalface_default.xml")),
-    embedder_(std::make_unique<FaceEmbedder>("/app/models/embedding/arcfaceresnet100-8.onnx")),
+    detector_(std::make_unique<FaceDetector>()),
+    embedder_(std::make_unique<FaceEmbedder>()),
     db_(std::make_unique<FaceDB>("/app/data/face_db.bin"))
 {
+    // Load models with proper error checking
+    if (!detector_->loadCascade("/app/models/detector/haarcascade_frontalface_default.xml")) {
+        std::cerr << "Failed to load face detector!" << std::endl;
+        detector_.reset(); // Set to nullptr on failure
+    }
+    
+    if (!embedder_->loadModel("/app/models/embedding/arcfaceresnet100-8.onnx")) {
+        std::cerr << "Failed to load face embedder!" << std::endl;
+        embedder_.reset(); // Set to nullptr on failure
+    }
+
     listener.support(methods::GET, std::bind(&FaceRecognitionServer::handleGet, this, std::placeholders::_1));
     listener.support(methods::POST, std::bind(&FaceRecognitionServer::handlePost, this, std::placeholders::_1));
     listener.support(methods::OPTIONS, std::bind(&FaceRecognitionServer::handleOptions, this, std::placeholders::_1));
+
+    std::cout << "Detector loaded: " << (detector_ ? "yes" : "no") << std::endl;
+    std::cout << "Embedder loaded: " << (embedder_ ? "yes" : "no") << std::endl;
 }
 
 FaceRecognitionServer::~FaceRecognitionServer() = default;
@@ -123,31 +137,66 @@ void FaceRecognitionServer::processImage(const std::string& base64Image) {
 void FaceRecognitionServer::registerFace(const std::string& name, const std::string& base64Image) {
     std::cout << "Register face for: " << name << std::endl;
     try {
+        if (!detector_ || !embedder_ || !db_) {
+            throw std::runtime_error("Required components not loaded");
+        }
+        
         std::vector<unsigned char> decoded = Base64::decode(base64Image);
         cv::Mat img = cv::imdecode(decoded, cv::IMREAD_COLOR);
-        if (!img.empty()) {
-            cv::Mat faceImg = detector_->cropLargestFace(img);
-            cv::imwrite("register_"+ name +".jpg", faceImg);
-            std::vector<float> faceEmbedd = embedder_->getEmbedding(faceImg);
-            db_->add(name, faceEmbedd);
+        if (img.empty()) {
+            std::cerr << "Image empty" << std::endl;
+            throw std::runtime_error("Image empty");
         }
-    } catch(...) {}
+        cv::Mat faceImg = detector_->cropLargestFace(img);
+        if (faceImg.empty()) {
+            std::cerr << "No face detected" << std::endl;
+            throw std::runtime_error("No face detected");
+        }
+        
+        std::vector<float> emb = embedder_->getNormalizedEmbedding(faceImg); // atau getEmbedding
+        if (emb.empty()) {
+            std::cerr << "Embedding empty" << std::endl;
+            throw std::runtime_error("Embedding empty");
+        }
+        db_->add(name, emb);
+    } 
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
 }
 
 void FaceRecognitionServer::verifyFace(const std::string& base64Image, std::string& outName, float& outConfidence) {
     std::cout << "Verify face" << std::endl;
+    outName = "";
+    outConfidence = 0.0f;
+    
     try
     {
+        if (!detector_ || !embedder_ || !db_) {
+            throw std::runtime_error("Required components not loaded");
+        }
+        
         std::vector<unsigned char> decoded = Base64::decode(base64Image);
         cv::Mat img = cv::imdecode(decoded, cv::IMREAD_COLOR);
-        if (!img.empty()) {
-            cv::Mat faceImg = detector_->cropLargestFace(img);
-            cv::imwrite("verify_current.jpg", faceImg);
-            std::vector<float> faceEmbedd = embedder_->getEmbedding(faceImg);
-            std::pair<std::string, float> data = db_->find(faceEmbedd, 0.2f);
-            outName = data.first;
-            outConfidence = data.second;
+        if (img.empty()) {
+            std::cerr << "Image empty" << std::endl;
+            throw std::runtime_error("Image empty");
         }
+        cv::Mat faceImg = detector_->cropLargestFace(img);
+        if (faceImg.empty()) {
+            std::cerr << "No face detected" << std::endl;
+            throw std::runtime_error("No face detected");
+        }
+        
+        std::vector<float> emb = embedder_->getNormalizedEmbedding(faceImg); // atau getEmbedding
+        if (emb.empty()) {
+            std::cerr << "Embedding empty" << std::endl;
+            throw std::runtime_error("Embedding empty");
+        }
+        std::pair<std::string, float> data = db_->find(emb, 0.2f);
+        outName = data.first;
+        outConfidence = data.second;
     }
     catch(const std::exception& e)
     {
