@@ -16,6 +16,7 @@ public:
     std::vector<cv::Rect> detectFaces(const cv::Mat& image);
     cv::Rect getLargestFace(const cv::Mat& image);
     cv::Mat cropLargestFace(const cv::Mat& image);
+    void cropFace(const cv::Mat& image, cv::Mat& outCropped, cv::Mat& outSpoofness);
 
 private:
     cv::CascadeClassifier faceCascade;
