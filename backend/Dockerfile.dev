@@ -3,8 +3,11 @@ FROM ubuntu:20.04
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     build-essential \
     git \
-    libopencv-dev \
-    libopencv-contrib-dev \
+    # OpenCV 4.8.0 build deps (menggantikan libopencv-dev & libopencv-contrib-dev)
+    pkg-config \
+    libjpeg-dev \
+    libpng-dev \
+    libtiff-dev \
     libcpprest-dev \
     libboost-all-dev \
     libeigen3-dev \
@@ -21,6 +24,30 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 
 # Install CMake 3.24+
 RUN wget -qO- "https://cmake.org/files/v3.24/cmake-3.24.0-linux-x86_64.tar.gz" | tar --strip-components=1 -xz -C /usr/local
+
+# Install OpenCV 4.8.0 from source (no GUI, no FFMPEG, DNN opset 13)
+RUN wget -q https://github.com/opencv/opencv/archive/4.8.0.zip -O /tmp/opencv.zip && \
+    wget -q https://github.com/opencv/opencv_contrib/archive/4.8.0.zip -O /tmp/opencv_contrib.zip && \
+    unzip -q /tmp/opencv.zip -d /tmp && \
+    unzip -q /tmp/opencv_contrib.zip -d /tmp && \
+    cmake -S /tmp/opencv-4.8.0 -B /tmp/opencv-build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DOPENCV_EXTRA_MODULES_PATH=/tmp/opencv_contrib-4.8.0/modules \
+        -DBUILD_TESTS=OFF \
+        -DBUILD_PERF_TESTS=OFF \
+        -DBUILD_EXAMPLES=OFF \
+        -DBUILD_DOCS=OFF \
+        -DWITH_CUDA=OFF \
+        -DWITH_FFMPEG=OFF \
+        -DWITH_GTK=OFF \
+        -DWITH_QT=OFF \
+        -DWITH_GSTREAMER=OFF \
+        -DBUILD_opencv_dnn=ON && \
+    make -C /tmp/opencv-build -j$(nproc) && \
+    make -C /tmp/opencv-build install && \
+    ldconfig && \
+    rm -rf /tmp/opencv.zip /tmp/opencv_contrib.zip /tmp/opencv-4.8.0 /tmp/opencv_contrib-4.8.0 /tmp/opencv-build
 
 # Install FAISS (skip tests & benchmarks)
 RUN git clone https://github.com/facebookresearch/faiss.git /tmp/faiss && \

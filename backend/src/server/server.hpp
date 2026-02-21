@@ -34,6 +34,7 @@ private:
 
     void ResetImages();
 
+    // cache
     std::unique_ptr<FaceDetector> detector_;
     std::unique_ptr<FaceEmbedder> embedder_;
     std::unique_ptr<FaceDB> db_;

@@ -19,7 +19,7 @@ FaceRecognitionServer::FaceRecognitionServer(const std::string& address)
         detector_.reset(); // Set to nullptr on failure
     }
     
-    if (!embedder_->loadModel("/app/models/embedding/arcfaceresnet100-8.onnx")) {
+    if (!embedder_->loadModel("/app/models/embedding/arcfaceresnet100-11-int8.onnx")) {
         std::cerr << "Failed to load face embedder!" << std::endl;
         embedder_.reset(); // Set to nullptr on failure
     }
