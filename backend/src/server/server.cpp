@@ -12,8 +12,8 @@ FaceRecognitionServer::FaceRecognitionServer(const std::string& address)
     detector_(std::make_unique<FaceDetector>()),
     embedder_(std::make_unique<FaceEmbedder>()),
     db_(std::make_unique<FaceDB>("/app/data/face_db.bin")),
-    anti_spoof_(std::make_unique<AntiSpoofing>("/app/models/anti_spoof/mobilenetv2_model2.onnx")),
-    depth_(std::make_unique<DepthAntiSpoofing>("/app/models/depth_anything/depth_anything_v2_vits_322_static.onnx"))
+    // anti_spoof_(std::make_unique<AntiSpoofing>("/app/models/anti_spoof/mobilenetv2_model2.onnx")),
+    depth_(std::make_unique<DepthAntiSpoofing>("/app/models/depth_anything/depth_anything_v2_vits_322_static.onnx", 0.5f))
 {
     // Load models with proper error checking
     if (!detector_->loadCascade("/app/models/detector/haarcascade_frontalface_default.xml")) {
@@ -167,17 +167,23 @@ void FaceRecognitionServer::registerFace(const std::string& name, const std::str
         if (full_image_.empty()) {
             throw std::runtime_error("Image empty");
         }
-        detector_->cropFace(full_image_, cropped_face_image_, spoof_detection_image_);
+        detector_->cropFace(full_image_, cropped_face_image_, spoof_detection_image_, faceArea_);
         if (cropped_face_image_.empty()) {
             throw std::runtime_error("No face detected");
         }
+
+        if (faceArea_.empty()) {
+            throw std::runtime_error("No Rect");
+        }
+
+        std::cout << "Face Area : " << faceArea_ << std::endl;
 
         cv::imwrite("regist_current_face.jpg", cropped_face_image_);
         cv::imwrite("regist_current_spoof.jpg", spoof_detection_image_);
 
         // --- CEK SPOOF ---
         float spoofScore;
-        bool isSpoof = depth_->isSpoof(full_image_, spoofScore);
+        bool isSpoof = depth_->isSpoof(full_image_, faceArea_, spoofScore);
         if (isSpoof) {
             throw std::runtime_error("Spoof detected! Score: " + std::to_string(spoofScore));
         }
@@ -211,10 +217,14 @@ void FaceRecognitionServer::verifyFace(const std::string& base64Image, std::stri
         if (full_image_.empty()) {
             throw std::runtime_error("Image empty");
         }
-        
-        detector_->cropFace(full_image_, cropped_face_image_, spoof_detection_image_);
+
+        detector_->cropFace(full_image_, cropped_face_image_, spoof_detection_image_, faceArea_);
         if (cropped_face_image_.empty()) {
             throw std::runtime_error("No face detected");
+        }
+
+        if (faceArea_.empty()) {
+            throw std::runtime_error("No Rect");
         }
 
         cv::imwrite("verify_current_face.jpg", cropped_face_image_);
@@ -222,7 +232,7 @@ void FaceRecognitionServer::verifyFace(const std::string& base64Image, std::stri
 
         // --- CEK SPOOF ---
         float spoofScore;
-        bool isSpoof = depth_->isSpoof(full_image_, spoofScore);
+        bool isSpoof = depth_->isSpoof(full_image_, faceArea_, spoofScore);
         if (isSpoof) {
             throw std::runtime_error("Spoof detected! Score: " + std::to_string(spoofScore));
         }

@@ -44,6 +44,7 @@ private:
     std::unique_ptr<DepthAntiSpoofing> depth_;
 
     cv::Mat full_image_, cropped_face_image_, spoof_detection_image_;
+    cv::Rect faceArea_;
 };
 
 #endif

@@ -34,6 +34,7 @@ add_executable(backend
     src/embedder/face_embedder.cpp
     src/db/face_db.cpp
     src/anti_spoof/anti_spoof.cpp
+    src/anti_spoof/depth_anything.cpp
 )
 
 target_include_directories(backend PRIVATE 
