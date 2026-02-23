@@ -122,10 +122,15 @@ async function verifyFace() {
             body: JSON.stringify({ image: imageBase64 })
         });
         const result = await res.json();
-        if (result.name) {
-            setResult(`Dikenali sebagai: ${result.name} (confidence: ${(result.confidence*100).toFixed(2)}%)`, 'success');
+        if (res.ok) {
+            if (result.name) {
+                setResult(`Dikenali sebagai: ${result.name} (confidence: ${(result.confidence*100).toFixed(2)}%)`, 'success');
+            } else {
+                setResult('Wajah tidak dikenali', 'error');
+            }
         } else {
-            setResult('Wajah tidak dikenali', 'error');
+            // Tangani error dari backend (spoof, dll)
+            setResult('Gagal: ' + (result.error || 'Unknown error'), 'error');
         }
     } catch (err) {
         setResult('Gagal verifikasi: ' + err.message, 'error');
