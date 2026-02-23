@@ -55,13 +55,20 @@ cv::Mat FaceDetector::cropLargestFace(const cv::Mat& image){
     return image(faceRect).clone();
 }
 
-void FaceDetector::cropFace(const cv::Mat& image, cv::Mat& outCropped, cv::Mat& outSpoofness) {
+void FaceDetector::cropFace(const cv::Mat& image, cv::Mat& outCropped, cv::Mat& outSpoofness, cv::Rect& outRect) {
     cv::Rect faceRect = getLargestFace(image);
     if (faceRect.empty()) {
         return;
     }
 
+    faceRect = faceRect & cv::Rect(0, 0, image.cols, image.rows);
+    if (faceRect.empty()) {
+        return;
+    }
+
     outCropped = image(faceRect).clone();
+
+    outRect = faceRect;
 
     int dw = faceRect.width * 0.25;
     int dh = faceRect.height * 0.25;
