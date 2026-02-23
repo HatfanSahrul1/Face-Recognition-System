@@ -98,7 +98,13 @@ async function registerFace() {
             body: JSON.stringify({ name: name, image: imageBase64 })
         });
         const result = await res.json();
-        setResult('Pendaftaran berhasil: ' + JSON.stringify(result), 'success');
+        if (res.ok) {
+            setResult('Pendaftaran berhasil: ' + JSON.stringify(result), 'success');
+            registerNameInput.value = '';          // ← kosongkan input
+            registerBtn.disabled = true;           // nonaktifkan tombol lagi
+        } else {
+            setResult('Gagal daftar: ' + (result.error || 'Unknown error'), 'error');
+        }
     } catch (err) {
         setResult('Gagal daftar: ' + err.message, 'error');
     }
