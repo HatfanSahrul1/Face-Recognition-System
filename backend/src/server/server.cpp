@@ -13,7 +13,7 @@ FaceRecognitionServer::FaceRecognitionServer(const std::string& address)
     embedder_(std::make_unique<FaceEmbedder>()),
     db_(std::make_unique<FaceDB>("/app/data/face_db.bin")),
     // anti_spoof_(std::make_unique<AntiSpoofing>("/app/models/anti_spoof/mobilenetv2_model2.onnx")),
-    depth_(std::make_unique<DepthAntiSpoofing>("/app/models/depth_anything/depth_anything_v2_vits_322_static.onnx", 0.5f))
+    depth_(std::make_unique<DepthAntiSpoofing>())
 {
     // Load models with proper error checking
     if (!detector_->loadCascade("/app/models/detector/haarcascade_frontalface_default.xml")) {
@@ -24,6 +24,11 @@ FaceRecognitionServer::FaceRecognitionServer(const std::string& address)
     if (!embedder_->loadModel("/app/models/embedding/arcfaceresnet100-8.onnx")) {
         std::cerr << "Failed to load face embedder!" << std::endl;
         embedder_.reset(); // Set to nullptr on failure
+    }
+
+    if (!depth_->LoadModel("/app/models/depth_anything/depth_anything_v2_vits_322_static.onnx", 0.5f)){
+        std::cerr << "Failed to load depth anything!" << std::endl;
+        depth_.reset(); // Set to nullptr on failure
     }
 
     listener.support(methods::GET, std::bind(&FaceRecognitionServer::handleGet, this, std::placeholders::_1));

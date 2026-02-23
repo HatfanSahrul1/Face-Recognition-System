@@ -9,7 +9,10 @@
 class DepthAntiSpoofing
 {
 public:
-    explicit DepthAntiSpoofing(const std::string& modelPath, float flatThreshold = 0.02f);
+    DepthAntiSpoofing(float flatThreshold = 0.02f);
+    DepthAntiSpoofing(const std::string& modelPath, float flatThreshold = 0.02f);
+
+    bool LoadModel(const std::string& modelPath, float flatThreshold = 0.02f);
 
     bool isSpoof(const cv::Mat& frame, const cv::Rect& faceRect, float& stddevOut);
     bool isSpoof(const cv::Mat& frame, const cv::Rect& faceRect);

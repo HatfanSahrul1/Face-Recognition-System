@@ -1,5 +1,12 @@
 #include "depth_anything.hpp"
 
+DepthAntiSpoofing::DepthAntiSpoofing(float flatThreshold) 
+:   flatThreshold_(flatThreshold),
+    env_(ORT_LOGGING_LEVEL_WARNING, "DepthAntiSpoofing"),
+    session_(nullptr),
+    inputH_(0),
+    inputW_(0)
+{}
 
 DepthAntiSpoofing::DepthAntiSpoofing(const std::string& modelPath, float flatThreshold)
     : flatThreshold_(flatThreshold),
@@ -18,6 +25,30 @@ DepthAntiSpoofing::DepthAntiSpoofing(const std::string& modelPath, float flatThr
     inputH_ = static_cast<int>(inputShape[2]);
     inputW_ = static_cast<int>(inputShape[3]);
     printf("[DepthAntiSpoofing] Input size: %dx%d\n", inputW_, inputH_);
+}
+
+bool DepthAntiSpoofing::LoadModel(const std::string& modelPath, float flatThreshold)
+{
+    try {
+        Ort::SessionOptions opts;
+        opts.SetIntraOpNumThreads(1);
+        opts.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+        session_ = Ort::Session(env_, modelPath.c_str(), opts);
+
+        // Auto-detect input size from model
+        auto inputShape = session_.GetInputTypeInfo(0)
+                            .GetTensorTypeAndShapeInfo().GetShape();
+        // inputShape: [1, 3, H, W]
+        inputH_ = static_cast<int>(inputShape[2]);
+        inputW_ = static_cast<int>(inputShape[3]);
+        printf("[DepthAntiSpoofing] Model loaded. Input size: %dx%d\n", inputW_, inputH_);
+        
+        return true;
+    }
+    catch (const std::exception& e) {
+        printf("[DepthAntiSpoofing] Error loading model: %s\n", e.what());
+        return false;
+    }
 }
 
 bool DepthAntiSpoofing::isSpoof(const cv::Mat& frame, const cv::Rect& faceRect, float& stddevOut)
