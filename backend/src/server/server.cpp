@@ -11,7 +11,9 @@ FaceRecognitionServer::FaceRecognitionServer(const std::string& address)
 :   listener(address),
     detector_(std::make_unique<FaceDetector>()),
     embedder_(std::make_unique<FaceEmbedder>()),
-    db_(std::make_unique<FaceDB>("/app/data/face_db.bin"))
+    db_(std::make_unique<FaceDB>("/app/data/face_db.bin")),
+    anti_spoof_(std::make_unique<AntiSpoofing>("/app/models/anti_spoof/mobilenetv2_model2.onnx")),
+    depth_(std::make_unique<DepthAntiSpoofing>("/app/models/depth_anything/depth_anything_v2_vits_322_static.onnx"))
 {
     // Load models with proper error checking
     if (!detector_->loadCascade("/app/models/detector/haarcascade_frontalface_default.xml")) {
@@ -19,7 +21,7 @@ FaceRecognitionServer::FaceRecognitionServer(const std::string& address)
         detector_.reset(); // Set to nullptr on failure
     }
     
-    if (!embedder_->loadModel("/app/models/embedding/arcfaceresnet100-11-int8.onnx")) {
+    if (!embedder_->loadModel("/app/models/embedding/arcfaceresnet100-8.onnx")) {
         std::cerr << "Failed to load face embedder!" << std::endl;
         embedder_.reset(); // Set to nullptr on failure
     }
@@ -85,15 +87,24 @@ void FaceRecognitionServer::handleRegister(http_request request) {
         auto name = body.at(U("name")).as_string();
         auto imageBase64 = body.at(U("image")).as_string();
         
-        this->registerFace(name, imageBase64);
-        
-        http_response response(status_codes::OK);
-        response.headers().add(U("Access-Control-Allow-Origin"), U("*"));
-        json::value resp;
-        resp[U("status")] = json::value::string(U("registered"));
-        resp[U("name")] = json::value::string(name);
-        response.set_body(resp);
-        request.reply(response);
+        try {
+            this->registerFace(name, imageBase64);
+            
+            http_response response(status_codes::OK);
+            response.headers().add(U("Access-Control-Allow-Origin"), U("*"));
+            json::value resp;
+            resp[U("status")] = json::value::string(U("registered"));
+            resp[U("name")] = json::value::string(name);
+            response.set_body(resp);
+            request.reply(response);
+        } catch (const std::exception& e) {
+            http_response response(status_codes::BadRequest);
+            response.headers().add(U("Access-Control-Allow-Origin"), U("*"));
+            json::value resp;
+            resp[U("error")] = json::value::string(e.what());
+            response.set_body(resp);
+            request.reply(response);
+        }
     }).wait();
 }
 
@@ -103,16 +114,25 @@ void FaceRecognitionServer::handleVerify(http_request request) {
         
         std::string name;
         float confidence;
-        this->verifyFace(imageBase64, name, confidence);
-        
-        http_response response(status_codes::OK);
-        response.headers().add(U("Access-Control-Allow-Origin"), U("*"));
-        json::value resp;
-        resp[U("status")] = json::value::string(U("verified"));
-        resp[U("name")] = json::value::string(name);
-        resp[U("confidence")] = json::value::number(confidence);
-        response.set_body(resp);
-        request.reply(response);
+        try {
+            this->verifyFace(imageBase64, name, confidence);
+            
+            http_response response(status_codes::OK);
+            response.headers().add(U("Access-Control-Allow-Origin"), U("*"));
+            json::value resp;
+            resp[U("status")] = json::value::string(U("verified"));
+            resp[U("name")] = json::value::string(name);
+            resp[U("confidence")] = json::value::number(confidence);
+            response.set_body(resp);
+            request.reply(response);
+        } catch (const std::exception& e) {
+            http_response response(status_codes::BadRequest);
+            response.headers().add(U("Access-Control-Allow-Origin"), U("*"));
+            json::value resp;
+            resp[U("error")] = json::value::string(e.what());
+            response.set_body(resp);
+            request.reply(response);
+        }
     }).wait();
 }
 
@@ -138,34 +158,41 @@ void FaceRecognitionServer::processImage(const std::string& base64Image) {
 void FaceRecognitionServer::registerFace(const std::string& name, const std::string& base64Image) {
     std::cout << "Register face for: " << name << std::endl;
     try {
-        if (!detector_ || !embedder_ || !db_) {
+        if (!detector_ || !embedder_ || !db_ || !depth_) {
             throw std::runtime_error("Required components not loaded");
         }
         
         std::vector<unsigned char> decoded = Base64::decode(base64Image);
         full_image_ = cv::imdecode(decoded, cv::IMREAD_COLOR);
         if (full_image_.empty()) {
-            std::cerr << "Image empty" << std::endl;
             throw std::runtime_error("Image empty");
         }
         detector_->cropFace(full_image_, cropped_face_image_, spoof_detection_image_);
         if (cropped_face_image_.empty()) {
-            std::cerr << "No face detected" << std::endl;
             throw std::runtime_error("No face detected");
         }
-        
-        std::vector<float> emb = embedder_->getNormalizedEmbedding(cropped_face_image_); // atau getEmbedding
+
+        cv::imwrite("regist_current_face.jpg", cropped_face_image_);
+        cv::imwrite("regist_current_spoof.jpg", spoof_detection_image_);
+
+        // --- CEK SPOOF ---
+        float spoofScore;
+        bool isSpoof = depth_->isSpoof(full_image_, spoofScore);
+        if (isSpoof) {
+            throw std::runtime_error("Spoof detected! Score: " + std::to_string(spoofScore));
+        }
+        // -----------------
+
+        std::vector<float> emb = embedder_->getNormalizedEmbedding(cropped_face_image_);
         if (emb.empty()) {
-            std::cerr << "Embedding empty" << std::endl;
             throw std::runtime_error("Embedding empty");
         }
         db_->add(name, emb);
 
         ResetImages();
-    } 
-    catch(const std::exception& e)
-    {
-        std::cerr << e.what() << '\n';
+    } catch (const std::exception& e) {
+        std::cerr << "Register error: " << e.what() << std::endl;
+        throw; // rethrow agar ditangkap handleRegister
     }
 }
 
@@ -174,27 +201,35 @@ void FaceRecognitionServer::verifyFace(const std::string& base64Image, std::stri
     outName = "";
     outConfidence = 0.0f;
     
-    try
-    {
-        if (!detector_ || !embedder_ || !db_) {
+    try {
+        if (!detector_ || !embedder_ || !db_ || !depth_) {
             throw std::runtime_error("Required components not loaded");
         }
         
         std::vector<unsigned char> decoded = Base64::decode(base64Image);
         full_image_ = cv::imdecode(decoded, cv::IMREAD_COLOR);
         if (full_image_.empty()) {
-            std::cerr << "Image empty" << std::endl;
             throw std::runtime_error("Image empty");
         }
+        
         detector_->cropFace(full_image_, cropped_face_image_, spoof_detection_image_);
         if (cropped_face_image_.empty()) {
-            std::cerr << "No face detected" << std::endl;
             throw std::runtime_error("No face detected");
         }
-        
-        std::vector<float> emb = embedder_->getNormalizedEmbedding(cropped_face_image_); // atau getEmbedding
+
+        cv::imwrite("verify_current_face.jpg", cropped_face_image_);
+        cv::imwrite("verify_current_spoof.jpg", spoof_detection_image_);
+
+        // --- CEK SPOOF ---
+        float spoofScore;
+        bool isSpoof = depth_->isSpoof(full_image_, spoofScore);
+        if (isSpoof) {
+            throw std::runtime_error("Spoof detected! Score: " + std::to_string(spoofScore));
+        }
+        // -----------------
+
+        std::vector<float> emb = embedder_->getNormalizedEmbedding(cropped_face_image_);
         if (emb.empty()) {
-            std::cerr << "Embedding empty" << std::endl;
             throw std::runtime_error("Embedding empty");
         }
         std::pair<std::string, float> data = db_->find(emb, 0.2f);
@@ -202,12 +237,10 @@ void FaceRecognitionServer::verifyFace(const std::string& base64Image, std::stri
         outConfidence = data.second;
 
         ResetImages();
+    } catch (const std::exception& e) {
+        std::cerr << "Verify error: " << e.what() << std::endl;
+        throw; // rethrow
     }
-    catch(const std::exception& e)
-    {
-        std::cerr << e.what() << '\n';
-    }
-    
 }
 
 void FaceRecognitionServer::ResetImages(){

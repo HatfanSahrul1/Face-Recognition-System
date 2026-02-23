@@ -10,6 +10,8 @@
 #include "detector/face_detector.hpp"
 #include "embedder/face_embedder.hpp"
 #include "db/face_db.hpp"
+#include "anti_spoof/anti_spoof.hpp"
+#include "anti_spoof/depth_anything.hpp"
 
 class FaceRecognitionServer {
 public:
@@ -38,6 +40,8 @@ private:
     std::unique_ptr<FaceDetector> detector_;
     std::unique_ptr<FaceEmbedder> embedder_;
     std::unique_ptr<FaceDB> db_;
+    std::unique_ptr<AntiSpoofing> anti_spoof_;
+    std::unique_ptr<DepthAntiSpoofing> depth_;
 
     cv::Mat full_image_, cropped_face_image_, spoof_detection_image_;
 };
