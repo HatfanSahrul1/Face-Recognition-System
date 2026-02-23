@@ -1,0 +1,9 @@
+# models
+face_detection_model = /app/models/detector/haarcascade_frontalface_default.xml
+embedder_model = /app/models/embedding/arcfaceresnet100-8.onnx
+depth_estimation_model = /app/models/depth_anything/depth_anything_v2_vits_322_static.onnx
+
+# thresholds
+spoof_threshold = 0.5
+
+data_store = /app/data/face_db.bin

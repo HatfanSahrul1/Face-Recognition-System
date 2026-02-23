@@ -24,7 +24,7 @@ DepthAntiSpoofing::DepthAntiSpoofing(const std::string& modelPath, float flatThr
     // inputShape: [1, 3, H, W]
     inputH_ = static_cast<int>(inputShape[2]);
     inputW_ = static_cast<int>(inputShape[3]);
-    printf("[DepthAntiSpoofing] Input size: %dx%d\n", inputW_, inputH_);
+    printf("[DepthAntiSpoofing] Input size: %dx%d. threshold : %.2f\n", inputW_, inputH_, flatThreshold);
 }
 
 bool DepthAntiSpoofing::LoadModel(const std::string& modelPath, float flatThreshold)
@@ -41,7 +41,8 @@ bool DepthAntiSpoofing::LoadModel(const std::string& modelPath, float flatThresh
         // inputShape: [1, 3, H, W]
         inputH_ = static_cast<int>(inputShape[2]);
         inputW_ = static_cast<int>(inputShape[3]);
-        printf("[DepthAntiSpoofing] Model loaded. Input size: %dx%d\n", inputW_, inputH_);
+        flatThreshold_ = flatThreshold;
+        printf("[DepthAntiSpoofing] Input size: %dx%d. threshold : %.2f\n", inputW_, inputH_, flatThreshold);
         
         return true;
     }

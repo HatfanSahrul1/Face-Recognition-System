@@ -28,6 +28,7 @@ endif()
 
 add_executable(backend 
     src/main.cpp
+    src/config/load_config.cpp
     src/server/server.cpp 
     src/base64/base64.cpp
     src/detector/face_detector.cpp

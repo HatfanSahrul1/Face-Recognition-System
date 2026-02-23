@@ -1,5 +1,6 @@
 #include "server/server.hpp"
 #include "base64/base64.hpp"
+#include "config/load_config.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -15,30 +16,38 @@ FaceRecognitionServer::FaceRecognitionServer(const std::string& address)
     // anti_spoof_(std::make_unique<AntiSpoofing>("/app/models/anti_spoof/mobilenetv2_model2.onnx")),
     depth_(std::make_unique<DepthAntiSpoofing>())
 {
-    // Load models with proper error checking
-    if (!detector_->loadCascade("/app/models/detector/haarcascade_frontalface_default.xml")) {
-        std::cerr << "Failed to load face detector!" << std::endl;
-        detector_.reset(); // Set to nullptr on failure
+    try
+    {
+        Config cfg("/app/config.txt");
+        // Load models with proper error checking
+        if (!detector_->loadCascade(cfg.getString("face_detection_model"))) {
+            std::cerr << "Failed to load face detector!" << std::endl;
+            detector_.reset();
+        }
+
+        if (!embedder_->loadModel(cfg.getString("embedder_model"))) {
+            std::cerr << "Failed to load face embedder!" << std::endl;
+            embedder_.reset();
+        }
+
+        if (!depth_->LoadModel(cfg.getString("depth_estimation_model"), cfg.getFloat("spoof_threshold", 0.5f))){
+            std::cerr << "Failed to load depth anything!" << std::endl;
+            depth_.reset();
+        }
+
+        listener.support(methods::GET, std::bind(&FaceRecognitionServer::handleGet, this, std::placeholders::_1));
+        listener.support(methods::POST, std::bind(&FaceRecognitionServer::handlePost, this, std::placeholders::_1));
+        listener.support(methods::OPTIONS, std::bind(&FaceRecognitionServer::handleOptions, this, std::placeholders::_1));
+
+        std::cout << "Detector loaded: " << (detector_ ? "yes" : "no") << std::endl;
+        std::cout << "Embedder loaded: " << (embedder_ ? "yes" : "no") << std::endl;
+
+        full_image_ = cv::Mat::zeros(cv::Size(640, 480), CV_8UC1);
     }
-    
-    if (!embedder_->loadModel("/app/models/embedding/arcfaceresnet100-8.onnx")) {
-        std::cerr << "Failed to load face embedder!" << std::endl;
-        embedder_.reset(); // Set to nullptr on failure
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
     }
-
-    if (!depth_->LoadModel("/app/models/depth_anything/depth_anything_v2_vits_322_static.onnx", 0.5f)){
-        std::cerr << "Failed to load depth anything!" << std::endl;
-        depth_.reset(); // Set to nullptr on failure
-    }
-
-    listener.support(methods::GET, std::bind(&FaceRecognitionServer::handleGet, this, std::placeholders::_1));
-    listener.support(methods::POST, std::bind(&FaceRecognitionServer::handlePost, this, std::placeholders::_1));
-    listener.support(methods::OPTIONS, std::bind(&FaceRecognitionServer::handleOptions, this, std::placeholders::_1));
-
-    std::cout << "Detector loaded: " << (detector_ ? "yes" : "no") << std::endl;
-    std::cout << "Embedder loaded: " << (embedder_ ? "yes" : "no") << std::endl;
-
-    full_image_ = cv::Mat::zeros(cv::Size(640, 480), CV_8UC1);
 }
 
 FaceRecognitionServer::~FaceRecognitionServer() = default;
