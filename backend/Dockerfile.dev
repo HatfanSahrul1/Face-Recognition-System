@@ -49,6 +49,11 @@ RUN wget -q https://github.com/opencv/opencv/archive/4.8.0.zip -O /tmp/opencv.zi
     ldconfig && \
     rm -rf /tmp/opencv.zip /tmp/opencv_contrib.zip /tmp/opencv-4.8.0 /tmp/opencv_contrib-4.8.0 /tmp/opencv-build
 
+RUN wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-linux-x64-1.18.0.tgz \
+    && tar -xzf onnxruntime-linux-x64-1.18.0.tgz -C /usr/local --strip-components=1 \
+    && rm onnxruntime-linux-x64-1.18.0.tgz \
+    && ldconfig
+
 # Install FAISS (skip tests & benchmarks)
 RUN git clone https://github.com/facebookresearch/faiss.git /tmp/faiss && \
     cd /tmp/faiss && \

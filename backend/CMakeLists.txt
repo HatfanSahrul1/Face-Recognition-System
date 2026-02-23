@@ -14,6 +14,18 @@ if(NOT CPPREST_LIBRARY)
     message(FATAL_ERROR "cpprest library not found")
 endif()
 
+# ONNX Runtime
+find_path(ONNXRUNTIME_INCLUDE_DIR NAMES onnxruntime_cxx_api.h
+    PATHS /usr/local/include/onnxruntime
+)
+find_library(ONNXRUNTIME_LIBRARY NAMES onnxruntime
+    PATHS /usr/local/lib
+)
+
+if(NOT ONNXRUNTIME_LIBRARY)
+    message(FATAL_ERROR "onnxruntime library not found")
+endif()
+
 add_executable(backend 
     src/main.cpp
     src/server/server.cpp 
@@ -21,7 +33,20 @@ add_executable(backend
     src/detector/face_detector.cpp
     src/embedder/face_embedder.cpp
     src/db/face_db.cpp
+    src/anti_spoof/anti_spoof.cpp
 )
 
-target_include_directories(backend PRIVATE ${CPPREST_INCLUDE_DIR} src)
-target_link_libraries(backend ${OpenCV_LIBS} ${CPPREST_LIBRARY} OpenSSL::SSL OpenSSL::Crypto pthread)
+target_include_directories(backend PRIVATE 
+    ${CPPREST_INCLUDE_DIR} 
+    ${ONNXRUNTIME_INCLUDE_DIR}
+    src
+)
+
+target_link_libraries(backend 
+    ${OpenCV_LIBS} 
+    ${CPPREST_LIBRARY}
+    ${ONNXRUNTIME_LIBRARY}
+    OpenSSL::SSL 
+    OpenSSL::Crypto 
+    pthread
+)
