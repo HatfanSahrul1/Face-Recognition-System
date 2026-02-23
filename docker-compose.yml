@@ -5,7 +5,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - C:\Users\THINKPAD\bootcamp\finpro_rev\frontend:/usr/share/nginx/html
+      - ./frontend:/usr/share/nginx/html
     networks:
       - face-net
 
@@ -17,10 +17,15 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - C:\Users\THINKPAD\bootcamp\finpro_rev\backend:/app
+      - ./backend:/app
     networks:
       - face-net
-    command: tail -f /dev/null
+    command: >
+      bash -c "mkdir -p /app/build &&
+               cd /app/build &&
+               cmake .. &&
+               make -j$$(nproc) &&
+               ./backend"
 
 networks:
   face-net:
