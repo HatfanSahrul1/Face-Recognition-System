@@ -1,0 +1,14 @@
+# Model yang tidak dipakai
+models/anti_spoof/mobilenetv2_model.onnx
+models/anti_spoof/mobilenetv2_model2.onnx
+models/anti_spoof/mobilenetv2_model_fixed.onnx
+models/depth_anything/depth_anything_v2_vits_238.onnx
+models/depth_anything/depth_anything_v2_vits_238.onnx.data
+models/embedding/arcfaceresnet100-8.onnx
+models/embedding/arcfaceresnet100-11-int8.onnx
+
+# Build artifacts
+build/
+data/*
+# Misc
+*.log

@@ -1,6 +1,8 @@
+name: face-recognition
 services:
   frontend:
     build: ./frontend
+    image: face-frontend:dev
     container_name: face_frontend
     ports:
       - "80:80"
@@ -12,7 +14,7 @@ services:
   backend:
     build: 
       context: ./backend
-      dockerfile: Dockerfile.dev
+    image: face-backend:dev
     container_name: face_backend
     ports:
       - "8080:8080"

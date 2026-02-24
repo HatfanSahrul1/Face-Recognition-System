@@ -1,9 +1,8 @@
 FROM ubuntu:20.04
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --fix-missing \
     build-essential \
     git \
-    # OpenCV 4.8.0 build deps (menggantikan libopencv-dev & libopencv-contrib-dev)
     pkg-config \
     libjpeg-dev \
     libpng-dev \
