@@ -73,6 +73,8 @@ RUN mkdir -p /app/models/embedding/ && \
 
 WORKDIR /app
 
+COPY src /app/src
+
 COPY models /app/models
 
 CMD ["tail", "-f", "/dev/null"]
