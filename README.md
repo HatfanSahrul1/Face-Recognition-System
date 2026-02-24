@@ -1,7 +1,3 @@
-Here is the corrected version of your README with improved grammar and the requested directory structure illustration.
-
----
-
 # Face Recognition System with Anti-Spoofing
 
 A complete face recognition system that detects faces, extracts embeddings, and verifies identity with anti-spoofing protection.  
