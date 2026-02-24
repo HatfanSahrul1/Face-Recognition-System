@@ -27,6 +27,12 @@ services:
       - ./data:/app/data   # optional: persist face database
     networks:
       - face-net
+    command: >
+      bash -c "mkdir -p /app/build &&
+               cd /app/build &&
+               cmake .. &&
+               make -j$$(nproc) &&
+               ./backend"
 
   frontend:
     image: hatfan/face-recognition-cpp:frontend-latest
