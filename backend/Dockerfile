@@ -67,9 +67,12 @@ RUN git clone https://github.com/facebookresearch/faiss.git /tmp/faiss && \
     make -C build install && \
     rm -rf /tmp/faiss
 
-RUN mkdir -p /app/models && \
+RUN mkdir -p /app/models/embedding/ && \
     wget -q "https://github.com/onnx/models/raw/main/validated/vision/body_analysis/arcface/model/arcfaceresnet100-8.onnx" \
-    -O /app/models/arcfaceresnet100-8.onnx
+    -O /app/models/embedding/arcfaceresnet100-8.onnx
 
 WORKDIR /app
+
+COPY models /app/models
+
 CMD ["tail", "-f", "/dev/null"]
