@@ -84,12 +84,12 @@ After startup, access the app at `http://localhost`.
    - Face detection (Haar Cascade)
    - Anti‑spoofing check (MobileNet / DepthAnything)
    - Face embedding extraction (ArcFace ONNX)
-   - Similarity search (FAISS)
+   - Identity matching (cosine similarity against stored embeddings)
 3. Results are displayed in the web UI – you can register new faces or verify known ones.
 
 ## 📦 Tech Stack
 
-- **Backend**: C++17, OpenCV 4.8.0, ONNX Runtime, FAISS, Boost, cpprestsdk
+- **Backend**: C++17, OpenCV 4.8.0, ONNX Runtime, cpprestsdk, custom vector database (in‑memory with binary persistence)
 - **Frontend**: HTML, CSS, JavaScript (vanilla), Nginx
 - **Container**: Docker, Docker Compose
 
