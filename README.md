@@ -3,6 +3,9 @@
 A complete face recognition system that detects faces, extracts embeddings, and verifies identity with anti-spoofing protection.  
 Built with a C++ backend and a simple web frontend.
 
+### 📊 Presentation
+[View on Google Slides](https://docs.google.com/presentation/d/1lKPGjt2Xv182B0Cs-g7LeJn-4_xhjgC9)
+
 ## 🚀 Quick Start (choose one)
 
 ### Option 1 – Run with Docker Compose (pull pre‑built images)
